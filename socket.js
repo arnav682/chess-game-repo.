@@ -13,6 +13,24 @@ app.get('/', (req, res) => {
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const httpServer = createServer();
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*",
+        methods: ["*"]
+    }
+});
+
+io.on("connection", (socket) => {
+    console.log(socket.id);
+    players[socket.id] = socket;
+
+    fireonconnected(socket);
+
+    socket.on("disconnect", () => Fireondisconnect(socket));
+});
+
+
 let totalplayers = 0;
 let players = {};
 
@@ -111,21 +129,7 @@ function Fireondisconnect(socket) {
     firetotalplayers();
 }
 
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-        methods: ["*"]
-    }
-});
 
-io.on("connection", (socket) => {
-    console.log(socket.id);
-    players[socket.id] = socket;
-
-    fireonconnected(socket);
-
-    socket.on("disconnect", () => Fireondisconnect(socket));
-});
 
 const PORT = process.env.PORT || 10000;
 httpServer.listen(PORT, '0.0.0.0', () => {
