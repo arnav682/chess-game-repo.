@@ -1,6 +1,5 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-const PORT = 3000;
 const httpServer = createServer();
 let totalplayers = 0;
 let players = {};
@@ -106,6 +105,7 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => Fireondisconnect(socket));
 });
 
+const PORT = process.env.PORT || 10000;
 httpServer.listen(PORT,  '0.0.0.0',() => {
     console.log(`Server is listening on port ${PORT}`);
 });
