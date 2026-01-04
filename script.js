@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-const socket = io("http://192.168.1.11:3000");
+const socket = io();
 console.log(socket);
 
 socket.on("I am connected", () => {
