@@ -1,3 +1,9 @@
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// ... keep your existing server creation code here ...
+
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const httpServer = createServer();
@@ -119,3 +125,12 @@ const PORT = process.env.PORT || 10000;
 httpServer.listen(PORT,  '0.0.0.0',() => {
     console.log(`Server is listening on port ${PORT}`);
 });
+
+// ADD THESE TWO LINES:
+app.use(express.static(__dirname)); // This serves your CSS and JS files
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+
