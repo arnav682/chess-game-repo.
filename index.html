@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game Multiplayer</title>
+    <link rel="stylesheet" href="./LIBRARY/css/chessboard-1.0.0.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="chess.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"
+        integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <p id="total_players"> Total players connected: 0 </p>
+    <h3>Chess game</h3>
+    <div id="main-element" class="display-f">
+        <div class="left-panel">
+            <div id="white-timer" class="clock">White: <span id="white-timer-value">0:00</span></div>
+            <div id="board1" style="width: 500px; margin: 12px 0;"></div>
+            <div id="black-timer" class="clock">Black: <span id="black-timer-value">0:00</span></div>
+        </div>
+        <div class="right-panel">
+            <div id="youareplayingas" class="playing-as-text"></div>
+            <div id="button_parent">
+                <button data-time="5" class="timer-button">5 mins</button>
+                <button data-time="10" class="timer-button">10 mins</button>
+                <button data-time="15" class="timer-button">15 mins</button>
+            </div>
+        </div>
+    </div>
+    <p id="waiting_para_1" class="display-none">Waiting for opponent to ...</p>
+    <script src="./LIBRARY/js/chessboard-1.0.0.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
