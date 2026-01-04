@@ -16,6 +16,16 @@ let matches = {
     '15': [],
 };
 
+const path = require('path');
+
+// This line tells Render to "serve" all your files (HTML, CSS, LIBRARY)
+app.use(express.static(__dirname));
+
+// This line ensures that when someone visits the link, they see your game
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 function firetotalplayers() {
     io.emit("total_players_count_change", totalplayers);
 }
