@@ -1,143 +1,106 @@
 const express = require('express');
 const path = require('path');
-const app = express();
-
-app.use(express.static(__dirname)); // This serves your CSS and JS files
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// ... keep your existing server creation code here ...
-
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-const httpServer = createServer();
+
+const app = express();
+// FIX: We must pass 'app' here so Render can see your website
+const httpServer = createServer(app); 
 
 const io = new Server(httpServer, {
     cors: {
         origin: "*",
-        methods: ["*"]
+        methods: ["GET", "POST"]
     }
 });
 
-io.on("connection", (socket) => {
-    console.log(socket.id);
-    players[socket.id] = socket;
+// 1. MIDDLEWARE & ROUTING (Moved to top for stability)
+app.use(express.static(__dirname)); 
 
-    fireonconnected(socket);
-
-    socket.on("disconnect", () => Fireondisconnect(socket));
-});
-
-
-let totalplayers = 0;
-let players = {};
-
-let waiting = {
-    '5': [],
-    '10': [],
-    '15': [],
-};
-
-let matches = {
-    '5': [],
-    '10': [],
-    '15': [],
-};
-
-
-
-// This line tells Render to "serve" all your files (HTML, CSS, LIBRARY)
-app.use(express.static(__dirname));
-
-// This line ensures that when someone visits the link, they see your game
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// 2. GAME VARIABLES
+let totalplayers = 0;
+let players = {};
+let waiting = { '5': [], '10': [], '15': [] };
+let matches = { '5': [], '10': [], '15': [] };
+
+// 3. HELPER FUNCTIONS
 function firetotalplayers() {
     io.emit("total_players_count_change", totalplayers);
 }
 
 function setupmatch(opponentid, socketid, time) {
-    players[socketid].emit("match_found", { opponentid: opponentid }, "white", time);
-    players[opponentid].emit("match_found", { opponentid: socketid }, "black", time);
-    console.log("Match setup with time:", time);
+    if (players[socketid] && players[opponentid]) {
+        players[socketid].emit("match_found", { opponentid: opponentid }, "white", time);
+        players[opponentid].emit("match_found", { opponentid: socketid }, "black", time);
+        console.log(`Match started: ${time} mins between ${socketid} and ${opponentid}`);
 
-    players[opponentid].on("sync_state", function ($fen, turn) {
-        players[socketid].emit("sync_state_from_server", $fen, turn);
-    });
-    players[socketid].on("sync_state", function ($fen, turn) {
-        players[opponentid].emit("sync_state_from_server", $fen, turn);
-    });
+        // Sync Game State
+        const sync = (from, to) => {
+            from.on("sync_state", ($fen, turn) => to.emit("sync_state_from_server", $fen, turn));
+        };
+        sync(players[opponentid], players[socketid]);
+        sync(players[socketid], players[opponentid]);
 
-    players[opponentid].on("game_over", function (winner) {
-        players[socketid].emit("game_over_from_server", winner);
-    });
-    players[socketid].on("game_over", function (winner) {
-        players[opponentid].emit("game_over_from_server", winner);
-    });
+        // Game Over
+        const gameOver = (from, to) => {
+            from.on("game_over", (winner) => to.emit("game_over_from_server", winner));
+        };
+        gameOver(players[opponentid], players[socketid]);
+        gameOver(players[socketid], players[opponentid]);
 
-    players[opponentid].on("time_out", function (payload) {
-        players[socketid].emit("time_out_from_server", payload);
-        players[socketid].emit("game_over_from_server", payload.winner === 'White' ? 'White' : payload.winner);
-    });
-    players[socketid].on("time_out", function (payload) {
-        players[opponentid].emit("time_out_from_server", payload);
-        players[opponentid].emit("game_over_from_server", payload.winner === 'White' ? 'White' : payload.winner);
-    });
-}
-
-function handleplayrequest(time, socket) {
-    if (waiting[time].length > 0) {
-        const opponentid = waiting[time].splice(0, 1)[0];
-        matches[time].push([socket.id, [opponentid]]);
-        console.log("Match started between " + socket.id + " and " + opponentid);
-        setupmatch(opponentid, socket.id, time); // Pass time to setupmatch!
-        return;
-    }
-    if (!waiting[time].includes(socket.id)) {
-        waiting[time].push(socket.id);
+        // Time Out
+        const timeOut = (from, to) => {
+            from.on("time_out", (payload) => {
+                to.emit("time_out_from_server", payload);
+                to.emit("game_over_from_server", payload.winner);
+            });
+        };
+        timeOut(players[opponentid], players[socketid]);
+        timeOut(players[socketid], players[opponentid]);
     }
 }
 
-function fireonconnected(socket) {
-    socket.on("want_to_play", function (time) {
-        handleplayrequest(time, socket);
-        console.log(time + " minutes game requested");
-    });
+// 4. SOCKET CONNECTION
+io.on("connection", (socket) => {
+    console.log("New Connection:", socket.id);
+    players[socket.id] = socket;
     totalplayers++;
     firetotalplayers();
-}
 
-function removefromwaitingperiod(socketid) {
-    const foreachloop = [5, 10, 15];
-    foreachloop.forEach(element => {
-        const index = waiting[element].indexOf(socketid);
-        if (index > -1) {
-            waiting[element].splice(index, 1);
+    socket.on("want_to_play", (time) => {
+        console.log(`${time} minute game requested by ${socket.id}`);
+        if (waiting[time].length > 0) {
+            const opponentid = waiting[time].shift();
+            matches[time].push([socket.id, opponentid]);
+            setupmatch(opponentid, socket.id, time);
+        } else {
+            if (!waiting[time].includes(socket.id)) {
+                waiting[time].push(socket.id);
+            }
         }
     });
-    console.log("waiting");
-}
 
-function Fireondisconnect(socket) {
-    removefromwaitingperiod(socket.id);
-    console.log("Socket disconnected");
-    totalplayers--;
-    firetotalplayers();
-}
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+        // Clean up waiting lists
+        ['5', '10', '15'].forEach(t => {
+            waiting[t] = waiting[t].filter(id => id !== socket.id);
+        });
+        delete players[socket.id];
+        totalplayers--;
+        firetotalplayers();
+    });
+});
 
-
-
+// 5. SERVER START (Required for Render Scan)
 const PORT = process.env.PORT || 10000;
 httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is listening on port ${PORT}`);
 });
-
-
-// ADD THESE TWO LINES:
 
 
 
