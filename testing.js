@@ -1,14 +1,33 @@
-var board1 = Chessboard('board1', 'start')
-var board = null;
-var game = new Chess();
-var $status = $('#status');
-var $fen = $('#fen');
-var $pgn = $('#pgn');
-var c_player = null;
+// script.js
+
+// Socket
+const socket = io();
+
+// Chess engine and board
+let game = new Chess();
+let board = null;
+
+// UI refs
+const $status = $('#status'); // optional if present elsewhere
+const $fen = $('#fen');       // optional if present elsewhere
+const $pgn = $('#pgn');       // optional if present elsewhere
+
+// Player color and timers
+let c_player = null;
 let currenttimer = null;
 let whiteTimer = null;
 let blackTimer = null;
 
+// Toast helper (mobile-friendly instead of alerts)
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// Timers (unchanged logic, just replace alert with toast)
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
     display = document.getElementById(timerdisplay);
@@ -26,7 +45,7 @@ function startTimer(seconds, timerdisplay, oncomplete) {
       m = Math.floor(now / 60000), s = Math.floor(now / 1000) % 60;
     s = (s < 10 ? "0" : "") + s;
     if (display) display.innerHTML = m + ":" + s;
-    if (now == 0) {
+    if (now === 0) {
       clearInterval(timer);
       obj.resume = function () { };
       if (oncomplete) oncomplete();
@@ -41,78 +60,80 @@ function pauseTimer(color) {
   if (color === 'w' && whiteTimer) whiteTimer.pause();
   if (color === 'b' && blackTimer) blackTimer.pause();
 }
-
 function resumeTimer(color) {
   if (color === 'w' && whiteTimer) whiteTimer.resume();
   if (color === 'b' && blackTimer) blackTimer.resume();
 }
-
 function initTimers(minutes) {
   if (!whiteTimer) {
     whiteTimer = startTimer(Number(minutes) * 60, "white-timer-value", function () {
       socket.emit("time_out", { loser: 'w', winner: 'b' });
-      alert("White ran out of time. Black wins!");
-      window.location.reload();
+      showToast("White ran out of time. Black wins!");
+      setTimeout(() => window.location.reload(), 800);
     });
     whiteTimer.pause();
   }
   if (!blackTimer) {
     blackTimer = startTimer(Number(minutes) * 60, "black-timer-value", function () {
       socket.emit("time_out", { loser: 'b', winner: 'w' });
-      alert("Black ran out of time. White wins!");
-      window.location.reload();
+      showToast("Black ran out of time. White wins!");
+      setTimeout(() => window.location.reload(), 800);
     });
     blackTimer.pause();
   }
 }
 
-function onDragStart(source, piece, position, orientation) {
-  if (game.turn() != c_player) return false;
+// Detect touch for tap-to-move vs drag
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+// Board config: drag only on desktop
+function onDragStart(source, piece) {
+  if (isTouch) return false; // mobile uses tap-to-move
+  if (game.turn() !== c_player) return false;
   if (game.game_over()) return false;
-  if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
-      (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
-    return false;
-  }
+  if ((game.turn() === 'w' && piece.startsWith('b')) ||
+      (game.turn() === 'b' && piece.startsWith('w'))) return false;
 }
-
 function onDrop(source, target) {
-  var move = game.move({
-    from: source,
-    to: target,
-    promotion: 'q'
-  });
+  const move = game.move({ from: source, to: target, promotion: 'q' });
   if (move === null) return 'snapback';
-
-  // Pause both, then resume only the side to move
-  if (whiteTimer) whiteTimer.pause();
-  if (blackTimer) blackTimer.pause();
-  if (game.turn() === 'w') {
-    whiteTimer.resume();
-  } else {
-    blackTimer.resume();
-  }
-
+  pauseTimer('w'); pauseTimer('b');
+  resumeTimer(game.turn());
   socket.emit("sync_state", game.fen(), game.turn());
   updateStatus();
 }
-
+function onSnapEnd() { board.position(game.fen()); }
 function onChange() {
-  if (game.game_over()) {
-    if (game.in_checkmate()) {
-      const winner = game.turn() === 'b' ? 'White' : 'Black';
-      socket.emit("game_over", winner);
-    }
+  if (game.game_over() && game.in_checkmate()) {
+    const winner = game.turn() === 'b' ? 'White' : 'Black';
+    socket.emit("game_over", winner);
   }
 }
 
-function onSnapEnd() {
-  board.position(game.fen());
-}
-function updateStatus() {
-  var status = '';
-  var moveColor = 'White';
-  if (game.turn() === 'b') moveColor = 'Black';
+// Initialize board
+const config = {
+  draggable: !isTouch,
+  position: 'start',
+  onDragStart,
+  onDrop,
+  onChange,
+  onSnapEnd
+};
+board = Chessboard('board1', config);
 
+// Orientation helper (keep white at bottom on mobile for clarity)
+function setBoardOrientation(color) {
+  if (window.innerWidth < 640) {
+    board.orientation('white');
+  } else {
+    board.orientation(color);
+  }
+}
+
+// Status UI (optional; keep if you already have these elements)
+function updateStatus() {
+  let status = '';
+  let moveColor = game.turn() === 'b' ? 'Black' : 'White';
   if (game.in_checkmate()) {
     status = 'Game over, ' + moveColor + ' is in checkmate.';
   } else if (game.in_draw()) {
@@ -121,102 +142,169 @@ function updateStatus() {
     status = moveColor + ' to move';
     if (game.in_check()) status += ', ' + moveColor + ' is in check';
   }
-
-  $status.html(status);
-  $fen.html(game.fen());
-  $pgn.html(game.pgn());
+  if ($status.length) $status.html(status);
+  if ($fen.length) $fen.html(game.fen());
+  if ($pgn.length) $pgn.html(game.pgn());
 }
 
+// Tap-to-move
+let selectedSquare = null;
 
-var config = {
-  draggable: true,
-  position: 'start',
-  onDragStart: onDragStart,
-  onDrop: onDrop,
-  onChange: onChange,
-  onSnapEnd: onSnapEnd
+function getSquareElements() {
+  const dataEls = document.querySelectorAll('#board1 [data-square]');
+  if (dataEls.length) return dataEls;
+  return document.querySelectorAll('#board1 .square-55d63');
+}
+
+function squareIdFromEl(el) {
+  const ds = el.getAttribute('data-square');
+  if (ds) return ds;
+  const cls = Array.from(el.classList).find(c => c.startsWith('square-') && c.length === 8);
+  if (cls) return cls.split('-')[1];
+  return null;
+}
+
+function clearHighlights() {
+  getSquareElements().forEach(el => {
+    el.classList.remove('highlight-source', 'highlight-target');
+    el.style.backgroundColor = '';
+  });
+}
+
+function highlightLegalMoves(from) {
+  const sourceEl = Array.from(getSquareElements()).find(el => squareIdFromEl(el) === from);
+  if (sourceEl) sourceEl.classList.add('highlight-source');
+  const moves = game.moves({ square: from, verbose: true });
+  moves.forEach(m => {
+    const targetEl = Array.from(getSquareElements()).find(el => squareIdFromEl(el) === m.to);
+    if (targetEl) targetEl.classList.add('highlight-target');
+  });
+}
+
+function attemptTapMove(from, to) {
+  // Only allow moving on your turn
+  if (game.turn() !== c_player) {
+    showToast('Wait for your turn');
+    return false;
+  }
+  const move = game.move({ from, to, promotion: 'q' });
+  if (move === null) return false;
+
+  board.position(game.fen());
+  pauseTimer('w'); pauseTimer('b');
+  resumeTimer(game.turn());
+  socket.emit("sync_state", game.fen(), game.turn());
+  updateStatus();
+  return true;
+}
+
+function enableTapToMove() {
+  getSquareElements().forEach(el => {
+    el.addEventListener('click', () => {
+      const sq = squareIdFromEl(el);
+      if (!sq) return;
+
+      if (!selectedSquare) {
+        selectedSquare = sq;
+        clearHighlights();
+        highlightLegalMoves(sq);
+        return;
+      }
+
+      if (sq === selectedSquare) {
+        selectedSquare = null;
+        clearHighlights();
+        return;
+      }
+
+      const ok = attemptTapMove(selectedSquare, sq);
+      selectedSquare = null;
+      clearHighlights();
+      if (!ok) showToast('Illegal move');
+    }, { passive: true });
+  });
+}
+
+// Rebind taps after any board redraw
+function refreshTapBindings() { enableTapToMove(); }
+refreshTapBindings();
+
+// Hook into board.position to refresh taps after moves
+const originalSetPosition = board.position.bind(board);
+board.position = function (fen) {
+  originalSetPosition(fen);
+  refreshTapBindings();
 };
-board = Chessboard('board1', config);
 
-updateStatus();
+// Resize rebinding
+window.addEventListener('resize', refreshTapBindings);
 
+// Matchmaking controls
 function Handlebuttonclick(event) {
   const time = Number(event.target.getAttribute("data-time"));
   socket.emit("want_to_play", time);
   $("#main-element").hide();
   $("#waiting_para_1").show();
 }
-
 document.addEventListener('DOMContentLoaded', function () {
   const buttons = document.getElementsByClassName("timer-button");
   for (let index = 0; index < buttons.length; index++) {
-    const button = buttons[index];
-    button.addEventListener('click', Handlebuttonclick);
+    buttons[index].addEventListener('click', Handlebuttonclick);
   }
 });
 
-const socket = io();
-console.log(socket);
-
+// Socket events (using toasts instead of alert)
 socket.on("I am connected", () => {
-  alert("You are connected to the server");
+  showToast("Connected to server");
 });
 
 socket.on("total_players_count_change", function (totalPlayersCount) {
-  $("#total_players").text(" Total players : " + totalPlayersCount);
+  $("#total_players").text("Total players connected: " + totalPlayersCount);
 });
 
 socket.on("match_found", function (data, color, time) {
   c_player = color[0];
-
-  alert("Match found against opponent id : " + data.opponentid + " You are playing as " + color);
+  showToast(`Match found vs ${data.opponentid}. You are ${color}.`);
   $("#waiting_para_1").hide();
   $("#main-element").show();
-  // Set color text on right panel
-  document.getElementById("youareplayingas").textContent = "You are playing as " + color;
+
   game.reset();
   board.clear();
   board.start();
-  board.orientation(color);
-  currenttimer = time;
+  setBoardOrientation(color);
 
+  currenttimer = time;
   initTimers(time);
 
-  // Always pause both, then resume only the side to move
-  if (whiteTimer) whiteTimer.pause();
-  if (blackTimer) blackTimer.pause();
-  if (game.turn() === 'w') {
-    whiteTimer.resume();
-  } else {
-    blackTimer.resume();
-  }
+  pauseTimer('w'); pauseTimer('b');
+  if (game.turn() === 'w') resumeTimer('w'); else resumeTimer('b');
+
+  document.getElementById("youareplayingas").textContent = "You are playing as " + color;
+
+  refreshTapBindings();
 });
 
-socket.on("sync_state_from_server", function ($fen, turn) {
-  game.load($fen);
-  game.setTurn(turn);
-  board.position($fen);
+socket.on("sync_state_from_server", function (fen) {
+  game.load(fen);
+  board.position(fen);
 
-  if (!whiteTimer || !blackTimer) {
-    initTimers(currenttimer || 5);
-  }
-  if (whiteTimer) whiteTimer.pause();
-  if (blackTimer) blackTimer.pause();
-  if (turn === 'w') {
-    whiteTimer.resume();
-  } else {
-    blackTimer.resume();
-  }
+  if (!whiteTimer || !blackTimer) initTimers(currenttimer || 5);
+
+  pauseTimer('w'); pauseTimer('b');
+  resumeTimer(game.turn());
+
+  updateStatus();
+  refreshTapBindings();
 });
 
 socket.on("game_over_from_server", function (winner) {
-  alert("Game over! " + winner + " wins!");
-  window.location.reload();
+  showToast(`Game over! ${winner} wins!`);
+  setTimeout(() => window.location.reload(), 1000);
 });
 
 socket.on("time_out_from_server", function (payload) {
   if (payload && payload.winner) {
-    alert("Time out: " + payload.winner + " wins!");
-    window.location.reload();
+    showToast(`Time out: ${payload.winner} wins!`);
+    setTimeout(() => window.location.reload(), 1000);
   }
 });
