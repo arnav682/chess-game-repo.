@@ -185,3 +185,45 @@ h3 {
     max-height: none;
   }
 }
+
+.dropdown-card {
+  border: 1px solid var(--neon);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 0 10px var(--neon);
+}
+
+.dropdown-card summary {
+  cursor: pointer;
+  padding: 10px;
+  font-size: 18px;
+  color: var(--neon);
+  text-shadow: 0 0 5px var(--neon);
+  list-style: none;
+}
+
+.dropdown-card summary::-webkit-details-marker {
+  display: none; /* hide default arrow */
+}
+
+.dropdown-content {
+  padding: 10px;
+}
+
+.timer-button {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+}
+.timer-button:hover {
+  box-shadow: 0 0 15px var(--neon);
+}
+input{
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--neon);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-light);
+    
+}

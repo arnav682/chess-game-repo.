@@ -1,16 +1,11 @@
-// script.js
+// script.js (Part 1)
 
-// Socket
+// Socket connection
 const socket = io();
 
 // Chess engine and board
 let game = new Chess();
 let board = null;
-
-// UI refs
-const $status = $('#status'); // optional if present elsewhere
-const $fen = $('#fen');       // optional if present elsewhere
-const $pgn = $('#pgn');       // optional if present elsewhere
 
 // Player color and timers
 let c_player = null;
@@ -18,7 +13,7 @@ let currenttimer = null;
 let whiteTimer = null;
 let blackTimer = null;
 
-// Toast helper (mobile-friendly instead of alerts)
+// Toast helper
 function showToast(message) {
   const toast = document.createElement('div');
   toast.className = 'toast';
@@ -27,7 +22,7 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// Timers (unchanged logic, just replace alert with toast)
+// ---------------- TIMERS ----------------
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
     display = document.getElementById(timerdisplay);
@@ -69,7 +64,7 @@ function initTimers(minutes) {
     whiteTimer = startTimer(Number(minutes) * 60, "white-timer-value", function () {
       socket.emit("time_out", { loser: 'w', winner: 'b' });
       showToast("White ran out of time. Black wins!");
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 1000);
     });
     whiteTimer.pause();
   }
@@ -77,18 +72,18 @@ function initTimers(minutes) {
     blackTimer = startTimer(Number(minutes) * 60, "black-timer-value", function () {
       socket.emit("time_out", { loser: 'b', winner: 'w' });
       showToast("Black ran out of time. White wins!");
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 1000);
     });
     blackTimer.pause();
   }
 }
+// script.js (Part 2)
 
-// Detect touch for tap-to-move vs drag
+// Detect touch for mobile
 const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
-// Board config: drag only on desktop
 function onDragStart(source, piece) {
-  if (isTouch) return false; // mobile uses tap-to-move
+  if (isTouch) return false; // mobile uses long-press/tap
   if (game.turn() !== c_player) return false;
   if (game.game_over()) return false;
   if ((game.turn() === 'w' && piece.startsWith('b')) ||
@@ -121,16 +116,7 @@ const config = {
 };
 board = Chessboard('board1', config);
 
-// Orientation helper (keep white at bottom on mobile for clarity)
-function setBoardOrientation(color) {
-  if (window.innerWidth < 640) {
-    board.orientation('white');
-  } else {
-    board.orientation(color);
-  }
-}
-
-// Status UI (optional; keep if you already have these elements)
+// Status
 function updateStatus() {
   let status = '';
   let moveColor = game.turn() === 'b' ? 'Black' : 'White';
@@ -142,35 +128,29 @@ function updateStatus() {
     status = moveColor + ' to move';
     if (game.in_check()) status += ', ' + moveColor + ' is in check';
   }
-  if ($status.length) $status.html(status);
-  if ($fen.length) $fen.html(game.fen());
-  if ($pgn.length) $pgn.html(game.pgn());
+  const statusEl = document.getElementById('status');
+  if (statusEl) statusEl.textContent = status;
 }
+// script.js (Part 3)
 
-// Tap-to-move
+// Tap/Long-press
 let selectedSquare = null;
+let pressTimer = null;
 
 function getSquareElements() {
-  const dataEls = document.querySelectorAll('#board1 [data-square]');
-  if (dataEls.length) return dataEls;
-  return document.querySelectorAll('#board1 .square-55d63');
+  return document.querySelectorAll('#board1 [data-square], #board1 .square-55d63');
 }
-
 function squareIdFromEl(el) {
   const ds = el.getAttribute('data-square');
   if (ds) return ds;
   const cls = Array.from(el.classList).find(c => c.startsWith('square-') && c.length === 8);
-  if (cls) return cls.split('-')[1];
-  return null;
+  return cls ? cls.split('-')[1] : null;
 }
-
 function clearHighlights() {
   getSquareElements().forEach(el => {
     el.classList.remove('highlight-source', 'highlight-target');
-    el.style.backgroundColor = '';
   });
 }
-
 function highlightLegalMoves(from) {
   const sourceEl = Array.from(getSquareElements()).find(el => squareIdFromEl(el) === from);
   if (sourceEl) sourceEl.classList.add('highlight-source');
@@ -180,16 +160,10 @@ function highlightLegalMoves(from) {
     if (targetEl) targetEl.classList.add('highlight-target');
   });
 }
-
 function attemptTapMove(from, to) {
-  // Only allow moving on your turn
-  if (game.turn() !== c_player) {
-    showToast('Wait for your turn');
-    return false;
-  }
+  if (game.turn() !== c_player) return false;
   const move = game.move({ from, to, promotion: 'q' });
-  if (move === null) return false;
-
+  if (!move) return false;
   board.position(game.fen());
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
@@ -197,26 +171,32 @@ function attemptTapMove(from, to) {
   updateStatus();
   return true;
 }
-
-function enableTapToMove() {
+function enableLongPressSelect() {
   getSquareElements().forEach(el => {
-    el.addEventListener('click', () => {
-      const sq = squareIdFromEl(el);
-      if (!sq) return;
+    const sq = squareIdFromEl(el);
+    if (!sq) return;
 
-      if (!selectedSquare) {
+    // Long press to select
+    el.addEventListener('touchstart', () => {
+      pressTimer = setTimeout(() => {
         selectedSquare = sq;
         clearHighlights();
         highlightLegalMoves(sq);
-        return;
-      }
+      }, 500);
+    }, { passive: true });
 
+    el.addEventListener('touchend', () => {
+      clearTimeout(pressTimer);
+    });
+
+    // Single tap to move
+    el.addEventListener('click', () => {
+      if (!selectedSquare) return;
       if (sq === selectedSquare) {
         selectedSquare = null;
         clearHighlights();
         return;
       }
-
       const ok = attemptTapMove(selectedSquare, sq);
       selectedSquare = null;
       clearHighlights();
@@ -224,27 +204,23 @@ function enableTapToMove() {
     }, { passive: true });
   });
 }
-
-// Rebind taps after any board redraw
-function refreshTapBindings() { enableTapToMove(); }
+function refreshTapBindings() { enableLongPressSelect(); }
 refreshTapBindings();
 
-// Hook into board.position to refresh taps after moves
+// Hook into board.position
 const originalSetPosition = board.position.bind(board);
 board.position = function (fen) {
   originalSetPosition(fen);
   refreshTapBindings();
 };
+// script.js (Part 4)
 
-// Resize rebinding
-window.addEventListener('resize', refreshTapBindings);
-
-// Matchmaking controls
+// Matchmaking buttons
 function Handlebuttonclick(event) {
   const time = Number(event.target.getAttribute("data-time"));
   socket.emit("want_to_play", time);
-  $("#main-element").hide();
-  $("#waiting_para_1").show();
+  document.getElementById("main-element").style.display = "none";
+  document.getElementById("waiting_para_1").style.display = "block";
 }
 document.addEventListener('DOMContentLoaded', function () {
   const buttons = document.getElementsByClassName("timer-button");
@@ -253,33 +229,37 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-// Socket events (using toasts instead of alert)
+// ---------------- SOCKET EVENTS ----------------
 socket.on("I am connected", () => {
   showToast("Connected to server");
 });
 
 socket.on("total_players_count_change", function (totalPlayersCount) {
-  $("#total_players").text("Total players connected: " + totalPlayersCount);
+  document.getElementById("total_players").textContent =
+    "Total players connected: " + totalPlayersCount;
 });
 
 socket.on("match_found", function (data, color, time) {
   c_player = color[0];
   showToast(`Match found vs ${data.opponentid}. You are ${color}.`);
-  $("#waiting_para_1").hide();
-  $("#main-element").show();
+  document.getElementById("waiting_para_1").style.display = "none";
+  document.getElementById("main-element").style.display = "flex";
 
+  // Reset game and board
   game.reset();
   board.clear();
   board.start();
-  setBoardOrientation(color);
+  board.orientation(color);
 
   currenttimer = time;
   initTimers(time);
 
+  // Timers: pause both, resume side to move
   pauseTimer('w'); pauseTimer('b');
   if (game.turn() === 'w') resumeTimer('w'); else resumeTimer('b');
 
-  document.getElementById("youareplayingas").textContent = "You are playing as " + color;
+  document.getElementById("youareplayingas").textContent =
+    "You are playing as " + color;
 
   refreshTapBindings();
 });
@@ -308,3 +288,4 @@ socket.on("time_out_from_server", function (payload) {
     setTimeout(() => window.location.reload(), 1000);
   }
 });
+// End of script.js
