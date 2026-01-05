@@ -351,3 +351,4 @@ socket.on("time_out_from_server", function (payload) {
     setTimeout(() => window.location.reload(), 1000);
   }
 });
+// End of script.js
