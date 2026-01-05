@@ -1,4 +1,4 @@
-// app.js
+// script.js
 
 // Socket
 const socket = io();
@@ -8,9 +8,9 @@ let game = new Chess();
 let board = null;
 
 // UI refs
-const $status = $('#status');
-const $fen = $('#fen');
-const $pgn = $('#pgn');
+const $status = $('#status'); // optional if present elsewhere
+const $fen = $('#fen');       // optional if present elsewhere
+const $pgn = $('#pgn');       // optional if present elsewhere
 
 // Player color and timers
 let c_player = null;
@@ -18,7 +18,7 @@ let currenttimer = null;
 let whiteTimer = null;
 let blackTimer = null;
 
-// Toast helper (mobile-friendly instead of alert)
+// Toast helper (mobile-friendly instead of alerts)
 function showToast(message) {
   const toast = document.createElement('div');
   toast.className = 'toast';
@@ -27,7 +27,7 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// Timers
+// Timers (unchanged logic, just replace alert with toast)
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
     display = document.getElementById(timerdisplay);
@@ -60,12 +60,10 @@ function pauseTimer(color) {
   if (color === 'w' && whiteTimer) whiteTimer.pause();
   if (color === 'b' && blackTimer) blackTimer.pause();
 }
-
 function resumeTimer(color) {
   if (color === 'w' && whiteTimer) whiteTimer.resume();
   if (color === 'b' && blackTimer) blackTimer.resume();
 }
-
 function initTimers(minutes) {
   if (!whiteTimer) {
     whiteTimer = startTimer(Number(minutes) * 60, "white-timer-value", function () {
@@ -85,60 +83,31 @@ function initTimers(minutes) {
   }
 }
 
-// Board config with drag disabled on touch devices, tap-to-move enabled for all
+// Detect touch for tap-to-move vs drag
 const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
+// Board config: drag only on desktop
 function onDragStart(source, piece) {
-  // Desktop drag only; mobile uses tap-to-move
-  if (isTouch) return false;
+  if (isTouch) return false; // mobile uses tap-to-move
   if (game.turn() !== c_player) return false;
   if (game.game_over()) return false;
   if ((game.turn() === 'w' && piece.startsWith('b')) ||
       (game.turn() === 'b' && piece.startsWith('w'))) return false;
 }
-
 function onDrop(source, target) {
-  // Desktop drop
   const move = game.move({ from: source, to: target, promotion: 'q' });
   if (move === null) return 'snapback';
-
-  // Timers: pause both then resume side to move
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
-
   socket.emit("sync_state", game.fen(), game.turn());
   updateStatus();
 }
-
-function onSnapEnd() {
-  board.position(game.fen());
-}
-
+function onSnapEnd() { board.position(game.fen()); }
 function onChange() {
-  if (game.game_over()) {
-    if (game.in_checkmate()) {
-      const winner = game.turn() === 'b' ? 'White' : 'Black';
-      socket.emit("game_over", winner);
-    }
+  if (game.game_over() && game.in_checkmate()) {
+    const winner = game.turn() === 'b' ? 'White' : 'Black';
+    socket.emit("game_over", winner);
   }
-}
-
-function updateStatus() {
-  let status = '';
-  let moveColor = game.turn() === 'b' ? 'Black' : 'White';
-
-  if (game.in_checkmate()) {
-    status = 'Game over, ' + moveColor + ' is in checkmate.';
-  } else if (game.in_draw()) {
-    status = 'Game over, drawn position';
-  } else {
-    status = moveColor + ' to move';
-    if (game.in_check()) status += ', ' + moveColor + ' is in check';
-  }
-
-  $status.html(status);
-  $fen.html(game.fen());
-  $pgn.html(game.pgn());
 }
 
 // Initialize board
@@ -151,13 +120,37 @@ const config = {
   onSnapEnd
 };
 board = Chessboard('board1', config);
-updateStatus();
 
-// Tap-to-move implementation
+// Orientation helper (keep white at bottom on mobile for clarity)
+function setBoardOrientation(color) {
+  if (window.innerWidth < 640) {
+    board.orientation('white');
+  } else {
+    board.orientation(color);
+  }
+}
+
+// Status UI (optional; keep if you already have these elements)
+function updateStatus() {
+  let status = '';
+  let moveColor = game.turn() === 'b' ? 'Black' : 'White';
+  if (game.in_checkmate()) {
+    status = 'Game over, ' + moveColor + ' is in checkmate.';
+  } else if (game.in_draw()) {
+    status = 'Game over, drawn position';
+  } else {
+    status = moveColor + ' to move';
+    if (game.in_check()) status += ', ' + moveColor + ' is in check';
+  }
+  if ($status.length) $status.html(status);
+  if ($fen.length) $fen.html(game.fen());
+  if ($pgn.length) $pgn.html(game.pgn());
+}
+
+// Tap-to-move
 let selectedSquare = null;
 
 function getSquareElements() {
-  // Chessboard.js squares commonly carry data-square attribute; fallback to class
   const dataEls = document.querySelectorAll('#board1 [data-square]');
   if (dataEls.length) return dataEls;
   return document.querySelectorAll('#board1 .square-55d63');
@@ -166,7 +159,6 @@ function getSquareElements() {
 function squareIdFromEl(el) {
   const ds = el.getAttribute('data-square');
   if (ds) return ds;
-  // Fallback: class "square-e4" on some versions
   const cls = Array.from(el.classList).find(c => c.startsWith('square-') && c.length === 8);
   if (cls) return cls.split('-')[1];
   return null;
@@ -174,17 +166,14 @@ function squareIdFromEl(el) {
 
 function clearHighlights() {
   getSquareElements().forEach(el => {
-    el.classList.remove('highlight-source');
-    el.classList.remove('highlight-target');
-    el.style.backgroundColor = ''; // in case background used
+    el.classList.remove('highlight-source', 'highlight-target');
+    el.style.backgroundColor = '';
   });
 }
 
 function highlightLegalMoves(from) {
-  // highlight source
   const sourceEl = Array.from(getSquareElements()).find(el => squareIdFromEl(el) === from);
   if (sourceEl) sourceEl.classList.add('highlight-source');
-
   const moves = game.moves({ square: from, verbose: true });
   moves.forEach(m => {
     const targetEl = Array.from(getSquareElements()).find(el => squareIdFromEl(el) === m.to);
@@ -193,32 +182,29 @@ function highlightLegalMoves(from) {
 }
 
 function attemptTapMove(from, to) {
+  // Only allow moving on your turn
+  if (game.turn() !== c_player) {
+    showToast('Wait for your turn');
+    return false;
+  }
   const move = game.move({ from, to, promotion: 'q' });
   if (move === null) return false;
 
   board.position(game.fen());
-
-  // Timers: pause both then resume side to move
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
-
   socket.emit("sync_state", game.fen(), game.turn());
   updateStatus();
   return true;
 }
 
 function enableTapToMove() {
-  // attach click/tap listeners to squares
   getSquareElements().forEach(el => {
     el.addEventListener('click', () => {
       const sq = squareIdFromEl(el);
       if (!sq) return;
 
-      // Only allow tapping own pieces when it's your turn
       if (!selectedSquare) {
-        // Optional: check piece belongs to current player
-        // We can infer from game board, but chess.js doesn't expose per-square easily.
-        // We allow selection; legality will be enforced at move attempt.
         selectedSquare = sq;
         clearHighlights();
         highlightLegalMoves(sq);
@@ -226,7 +212,6 @@ function enableTapToMove() {
       }
 
       if (sq === selectedSquare) {
-        // Deselect
         selectedSquare = null;
         clearHighlights();
         return;
@@ -235,40 +220,32 @@ function enableTapToMove() {
       const ok = attemptTapMove(selectedSquare, sq);
       selectedSquare = null;
       clearHighlights();
-      if (!ok) {
-        // Feedback
-        showToast('Illegal move');
-      }
+      if (!ok) showToast('Illegal move');
     }, { passive: true });
   });
 }
 
-// Re-attach tap handlers whenever board updates
-function refreshTapBindings() {
-  enableTapToMove();
-}
+// Rebind taps after any board redraw
+function refreshTapBindings() { enableTapToMove(); }
 refreshTapBindings();
 
-// Re-bind on window resize or after board.position changes
-window.addEventListener('resize', () => {
-  refreshTapBindings();
-});
-
-// Hook into board rendering cycles
+// Hook into board.position to refresh taps after moves
 const originalSetPosition = board.position.bind(board);
 board.position = function (fen) {
   originalSetPosition(fen);
   refreshTapBindings();
 };
 
-// Controls: matchmaking
+// Resize rebinding
+window.addEventListener('resize', refreshTapBindings);
+
+// Matchmaking controls
 function Handlebuttonclick(event) {
   const time = Number(event.target.getAttribute("data-time"));
   socket.emit("want_to_play", time);
   $("#main-element").hide();
   $("#waiting_para_1").show();
 }
-
 document.addEventListener('DOMContentLoaded', function () {
   const buttons = document.getElementsByClassName("timer-button");
   for (let index = 0; index < buttons.length; index++) {
@@ -276,33 +253,21 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-// Board orientation helper
-function setBoardOrientation(color) {
-  if (window.innerWidth < 640) {
-    // Keep white at bottom for mobile clarity
-    board.orientation('white');
-  } else {
-    board.orientation(color);
-  }
-}
-
-// Socket events
+// Socket events (using toasts instead of alert)
 socket.on("I am connected", () => {
   showToast("Connected to server");
 });
 
 socket.on("total_players_count_change", function (totalPlayersCount) {
-  $("#total_players").text("Total players: " + totalPlayersCount);
+  $("#total_players").text("Total players connected: " + totalPlayersCount);
 });
 
 socket.on("match_found", function (data, color, time) {
   c_player = color[0];
-
   showToast(`Match found vs ${data.opponentid}. You are ${color}.`);
   $("#waiting_para_1").hide();
   $("#main-element").show();
 
-  // Reset board and game
   game.reset();
   board.clear();
   board.start();
@@ -311,28 +276,20 @@ socket.on("match_found", function (data, color, time) {
   currenttimer = time;
   initTimers(time);
 
-  // Timers start with side to move
   pauseTimer('w'); pauseTimer('b');
   if (game.turn() === 'w') resumeTimer('w'); else resumeTimer('b');
 
-  // UI hint
   document.getElementById("youareplayingas").textContent = "You are playing as " + color;
 
-  // Rebind taps after board redraw
   refreshTapBindings();
 });
 
-socket.on("sync_state_from_server", function (fen /*, turn */) {
-  // Load full state from server; fen encodes turn
+socket.on("sync_state_from_server", function (fen) {
   game.load(fen);
   board.position(fen);
 
-  // Ensure timers exist
-  if (!whiteTimer || !blackTimer) {
-    initTimers(currenttimer || 5);
-  }
+  if (!whiteTimer || !blackTimer) initTimers(currenttimer || 5);
 
-  // Timer control based on game.turn()
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
 
@@ -351,4 +308,5 @@ socket.on("time_out_from_server", function (payload) {
     setTimeout(() => window.location.reload(), 1000);
   }
 });
+
 // End of script.js
