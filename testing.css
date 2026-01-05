@@ -3,16 +3,32 @@
 body {
     background-color: #000000;
     color: #ffffff;
-    font-family: open sans, sans-serif;
-
+    font-family: 'Open Sans', sans-serif;
 }
 
 .display-f {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     height: 100vh;
     box-shadow: 0 0 10px rgb(46, 230, 250);
+}
+
+.left-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: 40px;
+    margin-right: 40px;
+}
+
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 350px;
+    margin-left: 40px;
 }
 
 .timer-button {
@@ -46,22 +62,36 @@ h3 {
     font-size: 18px;
     font-weight: 500;
     text-shadow: 0 0 5px rgb(46, 230, 250);
-    color: rgb(46, 230, 250)
+    color: rgb(46, 230, 250);
 }
 
 .display-none {
-    display: hide;
+    display: none;
     text-align: center;
     font-size: 75px;
     color: rgb(46, 230, 250);
     text-shadow: 0 0 5px rgb(46, 230, 250);
     margin-top: 45px;
 }
-#youareplayingas {
-    display: hide;
-    text-align: center;
-    font-size: 55px;
+
+.playing-as-text {
+    display: block;
+    text-align: left;
+    font-size: 40px;
     color: rgb(46, 230, 250);
     text-shadow: 0 0 5px rgb(46, 230, 250);
-    margin-top: 45px;
+    margin-bottom: 40px;
+    margin-top: 40px;
+}
+
+.clock {
+    color: rgb(46, 230, 250);
+    font-size: 20px;
+    margin: 6px 0;
+    text-shadow: 0 0 5px rgb(46, 230, 250);
+    text-align: center;
+    width: 200px;
+    background: rgba(255,255,255,0.02);
+    padding: 6px 12px;
+    border-radius: 6px;
 }
