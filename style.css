@@ -213,5 +213,10 @@ h3 {
 ::-webkit-scrollbar-thumb:hover {
   background: #39c9d9;
 }
+
+#confirmModal {
+  display: none;
+}
 /* End of style.css */
+
 
