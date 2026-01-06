@@ -217,6 +217,72 @@ h3 {
 #confirmModal {
   display: none;
 }
+
+#name_row, #controls_row, #spectate_row, #chat_panel, #ai_row {
+  margin-top: 12px;
+}
+
+#player_name, #spectate_id, #chat_input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--neon);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-light);
+  outline: none;
+}
+#chat_log p { margin: 4px 0; }
+
+#promotion_modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none; /* use display-none class toggle */
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+#promotion_modal.show { display: flex; }
+#promotion_inner button {
+  border: 2px solid var(--neon);
+  background: transparent;
+  color: var(--text-light);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-card {
+  border: 1px solid var(--neon);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 0 10px var(--neon);
+}
+
+.dropdown-card summary {
+  cursor: pointer;
+  padding: 10px;
+  font-size: 18px;
+  color: var(--neon);
+  text-shadow: 0 0 5px var(--neon);
+  list-style: none;
+}
+
+.dropdown-card summary::-webkit-details-marker {
+  display: none; /* hide default arrow */
+}
+
+.dropdown-content {
+  padding: 10px;
+}
+
+.timer-button {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+}
+
+
 /* End of style.css */
 
 
