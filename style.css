@@ -64,6 +64,18 @@ body {
   border-radius: 6px;
 }
 
+summary {
+  color: var(--neon);
+  font-size: 18px;
+  margin: 10px 0;
+  text-shadow: 0 0 5px var(--neon);
+  text-align: center;
+  width: 220px;
+  background: rgba(255,255,255,0.05);
+  padding: 6px 12px;
+  border-radius:6px;
+}
+
 /* Buttons */
 .timer-button {
   margin: 10px;
