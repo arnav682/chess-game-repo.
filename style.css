@@ -267,6 +267,16 @@ h3 {
   text-shadow: 0 0 5px var(--neon);
   list-style: none;
 }
+.modal.hidden { display: none; }
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: #111; padding: 20px; border-radius: 8px;
+  color: #fff; text-align: center;
+}
 
 .dropdown-card summary::-webkit-details-marker {
   display: none; /* hide default arrow */
@@ -274,6 +284,31 @@ h3 {
 
 .dropdown-content {
   padding: 10px;
+}
+
+.modal.hidden { display: none; }
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #111;
+  padding: 20px;
+  border-radius: 8px;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 0 10px var(--neon);
+}
+.modal-buttons {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 
 .timer-button {

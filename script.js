@@ -36,6 +36,27 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+// Modal helper
+function showConfirm(message, callback) {
+  const modal = document.getElementById("confirmModal");
+  const msg = document.getElementById("confirmMessage");
+  const yesBtn = document.getElementById("confirmYes");
+  const noBtn = document.getElementById("confirmNo");
+
+  msg.textContent = message;
+  modal.classList.remove("hidden");
+
+  yesBtn.onclick = () => {
+    modal.classList.add("hidden");
+    callback(true);
+  };
+  noBtn.onclick = () => {
+    modal.classList.add("hidden");
+    callback(false);
+  };
+}
+
+
 // Timers
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
@@ -199,7 +220,6 @@ function Handlebuttonclick(event) {
   const time = Number(event.target.getAttribute('data-time'));
   socket.emit('want_to_play', time);
   document.getElementById('main-element').style.display = 'none';
-  document.getElementById('waiting_para_1').style.display = 'block';
 }
 document.addEventListener('DOMContentLoaded', function () {
   const buttons = document.getElementsByClassName('timer-button');
@@ -249,7 +269,6 @@ playAiBtn.addEventListener('click', () => {
   initTimers(currenttimer);
   pauseTimer('w'); pauseTimer('b'); resumeTimer('w');
   document.getElementById('youareplayingas').textContent = 'You are playing vs AI (White)';
-  document.getElementById('waiting_para_1').style.display = 'none';
   document.getElementById('main-element').style.display = 'flex';
   showToast('AI match started');
 
@@ -328,22 +347,29 @@ socket.on('time_out_from_server', (payload) => {
   }
 });
 
-socket.on('draw_offer_from_server', ({ from }) => {
-  const accept = confirm(`${from} offered a draw. Accept?`);
-  socket.emit('draw_response', !!accept);
+socket.on("draw_offer_from_server", ({ from }) => {
+  showConfirm(`${from} offered a draw. Accept?`, (accept) => {
+    socket.emit("draw_response", accept);
+  });
 });
+
 socket.on('draw_declined', () => showToast('Draw offer declined'));
 
-socket.on('takeback_offer_from_server', ({ from }) => {
-  const accept = confirm(`${from} requested a takeback. Accept?`);
-  socket.emit('takeback_response', !!accept);
+
+socket.on("takeback_offer_from_server", ({ from }) => {
+  showConfirm(`${from} requested a takeback. Accept?`, (accept) => {
+    socket.emit("takeback_response", accept);
+  });
 });
+
 socket.on('takeback_declined', () => showToast('Takeback declined'));
 
-socket.on('rematch_offer_from_server', ({ from }) => {
-  const accept = confirm(`${from} requested a rematch. Accept?`);
-  socket.emit('rematch_response', !!accept);
+socket.on("rematch_offer_from_server", ({ from }) => {
+  showConfirm(`${from} requested a rematch. Accept?`, (accept) => {
+    socket.emit("rematch_response", accept);
+  });
 });
+
 socket.on('rematch_declined', () => showToast('Rematch declined'));
 
 socket.on('opponent_disconnected', ({ matchId }) => {
