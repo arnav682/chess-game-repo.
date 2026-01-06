@@ -207,6 +207,7 @@ function setupRelays(match) {
     });
   };
   chatHandler(ws, bs);
+  chatHandler(bs, ws);
 }
 
 // Anti-stall claim: opponent may claim win if lastMoveTime exceeds threshold
