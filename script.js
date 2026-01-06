@@ -308,7 +308,6 @@ socket.on('match_found', (payload) => {
   isSpectator = false;
   matchId = payload.matchId;
   c_player = payload.color === 'white' ? 'w' : 'b';
-  document.getElementById('waiting_para_1').style.display = 'none';
   document.getElementById('main-element').style.display = 'flex';
   document.getElementById('youareplayingas').textContent =
     `You are playing as ${payload.color} vs ${payload.opponentName}`;
