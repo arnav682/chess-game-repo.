@@ -245,6 +245,7 @@ function addSpectator(socket, matchId) {
     white: match.names.white,
     black: match.names.black,
     time: match.time
+    
   });
   socket.emit('sync_state_from_server', match.fen, match.turn);
 }
