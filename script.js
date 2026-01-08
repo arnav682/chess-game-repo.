@@ -29,9 +29,9 @@ const playAiBtn = document.getElementById('play_ai');
 
 //Sounds 
 
-const moveSound = new Audio('sounds/move.wav');
-const captureSound = new Audio('sounds/capture.wav');
-const checkSound = new Audio('sounds/check.wav');
+const moveSound = new Audio('sounds/move.mp3');
+const captureSound = new Audio('sounds/capture.mp3');
+const checkSound = new Audio('sounds/check.mp3');
 
 
 function playMoveSound() { moveSound.play(); }
