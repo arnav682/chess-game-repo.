@@ -128,6 +128,16 @@ function onDrop(source, target) {
     promoModal.classList.add('show');
     return 'snapback';
   }
+    if (move.captured) {
+    captureSound.play();
+  } else {
+    moveSound.play();
+  }
+
+  if (game.in_check()) {
+    checkSound.play();
+  }
+
   const move = game.move({ from: source, to: target, promotion: 'q' });
   if (move === null) return 'snapback';
   pauseTimer('w'); pauseTimer('b');
