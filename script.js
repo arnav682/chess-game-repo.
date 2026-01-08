@@ -302,6 +302,8 @@ playAiBtn.addEventListener('click', () => {
     updateStatus();
   }
 
+  
+
   // Hook after your move to play AI
   const originalEmit = socket.emit;
   socket.emit = function () {
@@ -314,6 +316,38 @@ playAiBtn.addEventListener('click', () => {
     return originalEmit.apply(socket, arguments);
   };
 });
+
+
+// --- Sound Toggle ---
+let soundEnabled = true;
+
+function updateSoundButton() {
+  const btn = document.getElementById("sound_toggle");
+  if (!btn) return;
+  btn.textContent = soundEnabled ? "🔊 Sound: On" : "🔇 Sound: Off";
+}
+
+document.getElementById("sound_toggle").addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  updateSoundButton();
+});
+
+// Wrapper to play sounds only if enabled
+function playSound(audio) {
+  if (soundEnabled) {
+    audio.currentTime = 0; // reset to start
+    audio.play();
+  }
+}
+
+// Replace direct .play() calls with playSound()
+function playMoveSound() { playSound(moveSound); }
+function playCaptureSound() { playSound(captureSound); }
+function playCheckSound() { playSound(checkSound); }
+
+// Initialize button text when page loads
+updateSoundButton();
+
 
 // Sockets
 socket.on('I am connected', () => showToast('Connected to server'));
