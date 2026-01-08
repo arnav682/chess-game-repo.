@@ -214,10 +214,6 @@ h3 {
   background: #39c9d9;
 }
 
-#confirmModal {
-  display: none;
-}
-
 #name_row, #controls_row, #spectate_row, #chat_panel, #ai_row {
   margin-top: 12px;
 }
@@ -267,17 +263,6 @@ h3 {
   text-shadow: 0 0 5px var(--neon);
   list-style: none;
 }
-.modal.hidden { display: none; }
-.modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex; align-items: center; justify-content: center;
-}
-.modal-content {
-  background: #111; padding: 20px; border-radius: 8px;
-  color: #fff; text-align: center;
-}
-
 .dropdown-card summary::-webkit-details-marker {
   display: none; /* hide default arrow */
 }
