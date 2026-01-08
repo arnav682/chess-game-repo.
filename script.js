@@ -69,7 +69,7 @@ function showConfirm(message, callback) {
   };
 }
 
-
+onDrop
 // Timers
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
@@ -82,17 +82,17 @@ function startTimer(seconds, timerdisplay, oncomplete) {
       m = Math.floor(now / 60000), s = Math.floor(now / 1000) % 60;
     s = (s < 10 ? '0' : '') + s;
     if (display) display.innerHTML = m + ':' + s;
-    if (now === 0) { clearInterval(timer); obj.resume = function(){}; if (oncomplete) oncomplete(); }
+    if (now === 0) { clearInterval(timer); obj.resume = function () { }; if (oncomplete) oncomplete(); }
     return now;
   };
   obj.resume();
   return obj;
 }
-function pauseTimer(color){ if(color==='w'&&whiteTimer)whiteTimer.pause(); if(color==='b'&&blackTimer)blackTimer.pause(); }
-function resumeTimer(color){ if(color==='w'&&whiteTimer)whiteTimer.resume(); if(color==='b'&&blackTimer)blackTimer.resume(); }
+function pauseTimer(color) { if (color === 'w' && whiteTimer) whiteTimer.pause(); if (color === 'b' && blackTimer) blackTimer.pause(); }
+function resumeTimer(color) { if (color === 'w' && whiteTimer) whiteTimer.resume(); if (color === 'b' && blackTimer) blackTimer.resume(); }
 function initTimers(minutes) {
   if (!whiteTimer) {
-    whiteTimer = startTimer(Number(minutes)*60, 'white-timer-value', () => {
+    whiteTimer = startTimer(Number(minutes) * 60, 'white-timer-value', () => {
       socket.emit('time_out', { loser: 'w', winner: 'b' });
       showToast('White ran out of time. Black wins!');
       setTimeout(() => location.reload(), 1000);
@@ -100,7 +100,7 @@ function initTimers(minutes) {
     whiteTimer.pause();
   }
   if (!blackTimer) {
-    blackTimer = startTimer(Number(minutes)*60, 'black-timer-value', () => {
+    blackTimer = startTimer(Number(minutes) * 60, 'black-timer-value', () => {
       socket.emit('time_out', { loser: 'b', winner: 'w' });
       showToast('Black ran out of time. White wins!');
       setTimeout(() => location.reload(), 1000);
@@ -128,20 +128,15 @@ function onDrop(source, target) {
     promoModal.classList.add('show');
     return 'snapback';
   }
-    if (move.captured) {
-    captureSound.play();
-  } else {
-    moveSound.play();
-  }
-
-  if (game.in_check()) {
-    checkSound.play();
-  }
-
   const move = game.move({ from: source, to: target, promotion: 'q' });
   if (move === null) return 'snapback';
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
+
+  // Play sounds
+  if (move.flags.includes('c')) playCaptureSound();
+  else playMoveSound();
+  if (game.in_check()) playCheckSound();
   socket.emit('sync_state', game.fen(), game.turn());
   updateStatus();
 }
