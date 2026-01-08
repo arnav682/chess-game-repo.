@@ -27,6 +27,19 @@ const promoModal = document.getElementById('promotion_modal');
 const promoBtns = document.querySelectorAll('.promo-btn');
 const playAiBtn = document.getElementById('play_ai');
 
+//Sounds 
+
+const moveSound = new Audio('sounds/move.wav');
+const captureSound = new Audio('sounds/capture.wav');
+const checkSound = new Audio('sounds/check.wav');
+
+
+function playMoveSound() { moveSound.play(); }
+function playCaptureSound() { captureSound.play(); }
+function playCheckSound() { checkSound.play(); }
+
+
+
 // Toast
 function showToast(message) {
   const toast = document.createElement('div');

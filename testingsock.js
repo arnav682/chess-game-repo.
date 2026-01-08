@@ -207,6 +207,7 @@ function setupRelays(match) {
     });
   };
   chatHandler(ws, bs);
+  chatHandler(bs, ws);
 }
 
 // Anti-stall claim: opponent may claim win if lastMoveTime exceeds threshold
@@ -322,4 +323,3 @@ const PORT = process.env.PORT || 10000;
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is listening on port ${PORT}`);
 });
-// End of socket.js

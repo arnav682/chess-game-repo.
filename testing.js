@@ -36,6 +36,27 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+// Modal helper
+function showConfirm(message, callback) {
+  const modal = document.getElementById("confirmModal");
+  const msg = document.getElementById("confirmMessage");
+  const yesBtn = document.getElementById("confirmYes");
+  const noBtn = document.getElementById("confirmNo");
+
+  msg.textContent = message;
+  modal.classList.remove("hidden");
+
+  yesBtn.onclick = () => {
+    modal.classList.add("hidden");
+    callback(true);
+  };
+  noBtn.onclick = () => {
+    modal.classList.add("hidden");
+    callback(false);
+  };
+}
+
+
 // Timers
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
@@ -207,25 +228,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (b.getAttribute('data-time')) b.addEventListener('click', Handlebuttonclick);
   }
 });
-// Modal helper
-function showConfirm(message, callback) {
-  const modal = document.getElementById("confirmModal");
-  const msg = document.getElementById("confirmMessage");
-  const yesBtn = document.getElementById("confirmYes");
-  const noBtn = document.getElementById("confirmNo");
-
-  msg.textContent = message;
-  modal.classList.remove("hidden");
-
-  yesBtn.onclick = () => {
-    modal.classList.add("hidden");
-    callback(true);
-  };
-  noBtn.onclick = () => {
-    modal.classList.add("hidden");
-    callback(false);
-  };
-}
 
 // Names
 setNameBtn.addEventListener('click', () => {
@@ -305,8 +307,8 @@ socket.on('total_players_count_change', (count) => {
 socket.on('match_found', (payload) => {
   isSpectator = false;
   matchId = payload.matchId;
+  console.log("Match ID:", payload.matchId);
   c_player = payload.color === 'white' ? 'w' : 'b';
-  showToast(`Match found vs ${payload.opponentName}. You are ${payload.color}.`);
   document.getElementById('main-element').style.display = 'flex';
   document.getElementById('youareplayingas').textContent =
     `You are playing as ${payload.color} vs ${payload.opponentName}`;
@@ -349,8 +351,10 @@ socket.on("draw_offer_from_server", ({ from }) => {
   showConfirm(`${from} offered a draw. Accept?`, (accept) => {
     socket.emit("draw_response", accept);
   });
-})
+});
+
 socket.on('draw_declined', () => showToast('Draw offer declined'));
+
 
 socket.on("takeback_offer_from_server", ({ from }) => {
   showConfirm(`${from} requested a takeback. Accept?`, (accept) => {
