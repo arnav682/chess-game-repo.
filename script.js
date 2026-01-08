@@ -307,6 +307,7 @@ socket.on('total_players_count_change', (count) => {
 socket.on('match_found', (payload) => {
   isSpectator = false;
   matchId = payload.matchId;
+  console.log("Match ID:", payload.matchId);
   c_player = payload.color === 'white' ? 'w' : 'b';
   document.getElementById('main-element').style.display = 'flex';
   document.getElementById('youareplayingas').textContent =
