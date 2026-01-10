@@ -207,6 +207,12 @@ function attemptTapMove(from, to) {
   if (!move) return false;
   board.position(game.fen(), true);
   pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
+
+  // Play sounds
+  if (move.flags.includes('c')) playCaptureSound();
+  else playMoveSound();
+  if (game.in_check()) playCheckSound();
+
   socket.emit('sync_state', game.fen(), game.turn());
   updateStatus();
   return true;
@@ -216,7 +222,7 @@ function enableLongPressSelect() {
     const sq = squareIdFromEl(el);
     if (!sq) return;
     el.addEventListener('touchstart', () => {
-      pressTimer = setTimeout(() => { selectedSquare = sq; clearHighlights(); highlightLegalMoves(sq); }, 500);
+      pressTimer = setTimeout(() => { selectedSquare = sq; clearHighlights(); highlightLegalMoves(sq); }, 600);
     }, { passive: true });
     el.addEventListener('touchend', () => { clearTimeout(pressTimer); });
     el.addEventListener('click', () => {
@@ -302,7 +308,7 @@ playAiBtn.addEventListener('click', () => {
     updateStatus();
   }
 
-  
+
 
   // Hook after your move to play AI
   const originalEmit = socket.emit;
