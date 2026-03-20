@@ -70,7 +70,6 @@ function showConfirm(message, callback) {
   };
 }
 
-onDrop
 // Timers
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
@@ -299,7 +298,7 @@ playAiBtn.addEventListener('click', () => {
 
   // Initialize Stockfish worker
   if (stockfishWorker) stockfishWorker.terminate();  // Clean up any existing worker
-  stockfishWorker = new Worker('https://unpkg.com/stockfish.js@10.0.2/stockfish.js');  // Using CDN for simplicity
+  stockfishWorker = Stockfish();  // Use Stockfish() directly since it's loaded via script tag
 
   // Listen for Stockfish responses
   stockfishWorker.onmessage = function(event) {
