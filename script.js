@@ -11,6 +11,7 @@ let blackTimer = null;
 let matchId = null;
 let isSpectator = false;
 let stockfishWorker = null;  // Stockfish worker for AI moves
+let stockfishReady = false;  // Flag to check if Stockfish is initialized
 
 // UI refs
 const nameInput = document.getElementById('player_name');
@@ -298,12 +299,19 @@ playAiBtn.addEventListener('click', () => {
 
   // Initialize Stockfish worker
   if (stockfishWorker) stockfishWorker.terminate();  // Clean up any existing worker
-  stockfishWorker = Stockfish();  // Use Stockfish() directly since it's loaded via script tag
+  stockfishWorker = new Worker('./stockfish.js');  // Local file for reliability
+  stockfishReady = false;
 
   // Listen for Stockfish responses
   stockfishWorker.onmessage = function(event) {
     const message = event.data;
-    if (message.startsWith('bestmove')) {
+    console.log('Stockfish message:', message);  // Debug log
+    if (message === 'uciok') {
+      stockfishWorker.postMessage('isready');
+    } else if (message === 'readyok') {
+      stockfishReady = true;
+      console.log('Stockfish is ready');
+    } else if (message.startsWith('bestmove')) {
       const bestMove = message.split(' ')[1];  // e.g., "bestmove e2e4"
       if (bestMove && bestMove !== '(none)') {
         // Convert UCI move to chess.js format (e.g., "e2e4" -> {from: 'e2', to: 'e4'})
@@ -319,10 +327,15 @@ playAiBtn.addEventListener('click', () => {
           if (move.flags.includes('c')) playCaptureSound();
           else playMoveSound();
           if (game.in_check()) playCheckSound();
+        } else {
+          console.error('Invalid move from Stockfish:', bestMove);
         }
       }
     }
   };
+
+  // Initialize Stockfish
+  stockfishWorker.postMessage('uci');
 
   // Hook after your move to play AI (now using Stockfish)
   const originalEmit = socket.emit;
@@ -339,15 +352,15 @@ playAiBtn.addEventListener('click', () => {
 
 // Updated AI move function to use Stockfish
 function aiMove() {
-  if (game.turn() !== 'b' || !stockfishWorker) return;
+  if (game.turn() !== 'b' || !stockfishWorker || !stockfishReady) return;
   if (game.game_over()) return;
 
   // Send current position to Stockfish in UCI format
   const fen = game.fen();
   stockfishWorker.postMessage(`position fen ${fen}`);
 
-  // Tell Stockfish to find the best move (depth 12 for balance; increase for harder, decrease for faster)
-  stockfishWorker.postMessage('go depth 12');
+  // Tell Stockfish to find the best move (depth 8 for faster response; increase later)
+  stockfishWorker.postMessage('go depth 8');
 }
 
 
