@@ -10,9 +10,6 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="favicon.png">
 
-
-
-
   <!-- Libraries -->
   <link rel="stylesheet" href="./LIBRARY/css/chessboard-1.0.0.min.css">
   <link rel="stylesheet" href="style.css">
@@ -22,6 +19,8 @@
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"
     integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
     crossorigin="anonymous"></script>
+  <!-- Add Stockfish.js for AI integration -->
+  <script src="https://unpkg.com/stockfish.js@10.0.2/stockfish.js"></script>
 </head>
 
 <body>
@@ -100,7 +99,6 @@
       </details>
     </div>
 
-
     <!-- Promotion Modal -->
     <div id="promotion_modal" class="modal hidden">
       <div class="modal-content">
@@ -116,8 +114,6 @@
 
     <button class="timer-button" id="sound_toggle">🔊 Sound: On</button>
 
-
-
     <!-- Generic confirmation modal -->
     <div id="confirmModal" class="modal hidden">
       <div class="modal-content">
@@ -130,14 +126,9 @@
     </div>
   </div>
 
-
-
-
   <!-- Scripts -->
   <script src="./LIBRARY/js/chessboard-1.0.0.min.js"></script>
   <script src="script.js"></script>
 </body>
 
 </html>
-<!DOCTYPE html>
-<html lang="en">

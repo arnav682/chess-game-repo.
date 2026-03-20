@@ -10,6 +10,7 @@ let whiteTimer = null;
 let blackTimer = null;
 let matchId = null;
 let isSpectator = false;
+let stockfishWorker = null;  // Stockfish worker for AI moves
 
 // UI refs
 const nameInput = document.getElementById('player_name');
@@ -285,7 +286,7 @@ chatSend.addEventListener('click', () => {
   chatInput.value = '';
 });
 
-// AI opponent (client-side only)
+// AI opponent (client-side only) - Updated to use Stockfish
 playAiBtn.addEventListener('click', () => {
   isSpectator = false;
   c_player = 'w';
@@ -294,34 +295,61 @@ playAiBtn.addEventListener('click', () => {
   pauseTimer('w'); pauseTimer('b'); resumeTimer('w');
   document.getElementById('youareplayingas').textContent = 'You are playing vs AI (White)';
   document.getElementById('main-element').style.display = 'flex';
-  showToast('AI match started');
+  showToast('AI match started (using Stockfish)');
 
-  // Simple AI: random legal move for black after your move
-  function aiMove() {
-    if (game.turn() !== 'b') return;
-    const moves = game.moves({ verbose: true });
-    if (!moves.length) return;
-    const choice = moves[Math.floor(Math.random() * moves.length)];
-    game.move({ from: choice.from, to: choice.to, promotion: 'q' });
-    board.position(game.fen(), true);
-    pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
-    updateStatus();
-  }
+  // Initialize Stockfish worker
+  if (stockfishWorker) stockfishWorker.terminate();  // Clean up any existing worker
+  stockfishWorker = new Worker('https://unpkg.com/stockfish.js@10.0.2/stockfish.js');  // Using CDN for simplicity
 
+  // Listen for Stockfish responses
+  stockfishWorker.onmessage = function(event) {
+    const message = event.data;
+    if (message.startsWith('bestmove')) {
+      const bestMove = message.split(' ')[1];  // e.g., "bestmove e2e4"
+      if (bestMove && bestMove !== '(none)') {
+        // Convert UCI move to chess.js format (e.g., "e2e4" -> {from: 'e2', to: 'e4'})
+        const from = bestMove.slice(0, 2);
+        const to = bestMove.slice(2, 4);
+        const promotion = bestMove.length > 4 ? bestMove[4] : 'q';  // Default to queen if promotion
+        const move = game.move({ from, to, promotion });
+        if (move) {
+          board.position(game.fen(), true);
+          pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
+          updateStatus();
+          // Play sounds
+          if (move.flags.includes('c')) playCaptureSound();
+          else playMoveSound();
+          if (game.in_check()) playCheckSound();
+        }
+      }
+    }
+  };
 
-
-  // Hook after your move to play AI
+  // Hook after your move to play AI (now using Stockfish)
   const originalEmit = socket.emit;
   socket.emit = function () {
-    // intercept sync_state only in AI mode (no sockets used)
+    // Intercept sync_state only in AI mode (no sockets used)
     const event = arguments[0];
     if (event === 'sync_state') {
-      setTimeout(aiMove, 500);
+      setTimeout(() => aiMove(), 500);  // Delay for AI to think
       return;
     }
     return originalEmit.apply(socket, arguments);
   };
 });
+
+// Updated AI move function to use Stockfish
+function aiMove() {
+  if (game.turn() !== 'b' || !stockfishWorker) return;
+  if (game.game_over()) return;
+
+  // Send current position to Stockfish in UCI format
+  const fen = game.fen();
+  stockfishWorker.postMessage(`position fen ${fen}`);
+
+  // Tell Stockfish to find the best move (depth 12 for balance; increase for harder, decrease for faster)
+  stockfishWorker.postMessage('go depth 12');
+}
 
 
 // --- Sound Toggle ---

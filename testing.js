@@ -27,6 +27,19 @@ const promoModal = document.getElementById('promotion_modal');
 const promoBtns = document.querySelectorAll('.promo-btn');
 const playAiBtn = document.getElementById('play_ai');
 
+//Sounds 
+
+const moveSound = new Audio('sounds/move.mp3');
+const captureSound = new Audio('sounds/capture.mp3');
+const checkSound = new Audio('sounds/check.mp3');
+
+
+function playMoveSound() { moveSound.play(); }
+function playCaptureSound() { captureSound.play(); }
+function playCheckSound() { checkSound.play(); }
+
+
+
 // Toast
 function showToast(message) {
   const toast = document.createElement('div');
@@ -56,7 +69,7 @@ function showConfirm(message, callback) {
   };
 }
 
-
+onDrop
 // Timers
 function startTimer(seconds, timerdisplay, oncomplete) {
   let startTime, timer, obj, ms = seconds * 1000,
@@ -69,17 +82,17 @@ function startTimer(seconds, timerdisplay, oncomplete) {
       m = Math.floor(now / 60000), s = Math.floor(now / 1000) % 60;
     s = (s < 10 ? '0' : '') + s;
     if (display) display.innerHTML = m + ':' + s;
-    if (now === 0) { clearInterval(timer); obj.resume = function(){}; if (oncomplete) oncomplete(); }
+    if (now === 0) { clearInterval(timer); obj.resume = function () { }; if (oncomplete) oncomplete(); }
     return now;
   };
   obj.resume();
   return obj;
 }
-function pauseTimer(color){ if(color==='w'&&whiteTimer)whiteTimer.pause(); if(color==='b'&&blackTimer)blackTimer.pause(); }
-function resumeTimer(color){ if(color==='w'&&whiteTimer)whiteTimer.resume(); if(color==='b'&&blackTimer)blackTimer.resume(); }
+function pauseTimer(color) { if (color === 'w' && whiteTimer) whiteTimer.pause(); if (color === 'b' && blackTimer) blackTimer.pause(); }
+function resumeTimer(color) { if (color === 'w' && whiteTimer) whiteTimer.resume(); if (color === 'b' && blackTimer) blackTimer.resume(); }
 function initTimers(minutes) {
   if (!whiteTimer) {
-    whiteTimer = startTimer(Number(minutes)*60, 'white-timer-value', () => {
+    whiteTimer = startTimer(Number(minutes) * 60, 'white-timer-value', () => {
       socket.emit('time_out', { loser: 'w', winner: 'b' });
       showToast('White ran out of time. Black wins!');
       setTimeout(() => location.reload(), 1000);
@@ -87,7 +100,7 @@ function initTimers(minutes) {
     whiteTimer.pause();
   }
   if (!blackTimer) {
-    blackTimer = startTimer(Number(minutes)*60, 'black-timer-value', () => {
+    blackTimer = startTimer(Number(minutes) * 60, 'black-timer-value', () => {
       socket.emit('time_out', { loser: 'b', winner: 'w' });
       showToast('Black ran out of time. White wins!');
       setTimeout(() => location.reload(), 1000);
@@ -119,6 +132,11 @@ function onDrop(source, target) {
   if (move === null) return 'snapback';
   pauseTimer('w'); pauseTimer('b');
   resumeTimer(game.turn());
+
+  // Play sounds
+  if (move.flags.includes('c')) playCaptureSound();
+  else playMoveSound();
+  if (game.in_check()) playCheckSound();
   socket.emit('sync_state', game.fen(), game.turn());
   updateStatus();
 }
@@ -189,6 +207,12 @@ function attemptTapMove(from, to) {
   if (!move) return false;
   board.position(game.fen(), true);
   pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
+
+  // Play sounds
+  if (move.flags.includes('c')) playCaptureSound();
+  else playMoveSound();
+  if (game.in_check()) playCheckSound();
+
   socket.emit('sync_state', game.fen(), game.turn());
   updateStatus();
   return true;
@@ -198,7 +222,7 @@ function enableLongPressSelect() {
     const sq = squareIdFromEl(el);
     if (!sq) return;
     el.addEventListener('touchstart', () => {
-      pressTimer = setTimeout(() => { selectedSquare = sq; clearHighlights(); highlightLegalMoves(sq); }, 500);
+      pressTimer = setTimeout(() => { selectedSquare = sq; clearHighlights(); highlightLegalMoves(sq); }, 600);
     }, { passive: true });
     el.addEventListener('touchend', () => { clearTimeout(pressTimer); });
     el.addEventListener('click', () => {
@@ -284,6 +308,8 @@ playAiBtn.addEventListener('click', () => {
     updateStatus();
   }
 
+
+
   // Hook after your move to play AI
   const originalEmit = socket.emit;
   socket.emit = function () {
@@ -296,6 +322,38 @@ playAiBtn.addEventListener('click', () => {
     return originalEmit.apply(socket, arguments);
   };
 });
+
+
+// --- Sound Toggle ---
+let soundEnabled = true;
+
+function updateSoundButton() {
+  const btn = document.getElementById("sound_toggle");
+  if (!btn) return;
+  btn.textContent = soundEnabled ? "🔊 Sound: On" : "🔇 Sound: Off";
+}
+
+document.getElementById("sound_toggle").addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  updateSoundButton();
+});
+
+// Wrapper to play sounds only if enabled
+function playSound(audio) {
+  if (soundEnabled) {
+    audio.currentTime = 0; // reset to start
+    audio.play();
+  }
+}
+
+// Replace direct .play() calls with playSound()
+function playMoveSound() { playSound(moveSound); }
+function playCaptureSound() { playSound(captureSound); }
+function playCheckSound() { playSound(checkSound); }
+
+// Initialize button text when page loads
+updateSoundButton();
+
 
 // Sockets
 socket.on('I am connected', () => showToast('Connected to server'));
