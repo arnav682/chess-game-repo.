@@ -288,31 +288,34 @@ chatSend.addEventListener('click', () => {
 
 // AI opponent (client-side only)
 async function playAiBtn() {
-    // Get current board state in FEN
-    const fen = game.toFEN();
+  if (game.turn() !== 'b') return; // Only play if it's Black's turn (AI)
 
-    // Send FEN to backend
-    const response = await fetch("/ai/move", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fen)
-    });
+  // Load Stockfish if not already loaded
+  if (!window.Stockfish) {
+    const script = document.createElement('script');
+    script.src = 'engine/stockfish-18.js'; // Path to your Stockfish file
+    document.head.appendChild(script);
+    await new Promise(resolve => script.onload = resolve);
+  }
 
-    const aiMove = await response.text();
+  const stockfish = new Worker('engine/stockfish-18.js'); // Stockfish runs in a Web Worker for performance
+  stockfish.postMessage('uci');
+  stockfish.postMessage('setoption name Skill Level value 10'); // Adjust skill (0-20)
+  stockfish.postMessage(`position fen ${game.fen()}`);
+  stockfish.postMessage('go movetime 2000'); // 2-second think time
 
-    // Apply AI move to board
-    game.makeMove(aiMove);
-    boardUI.update(game);
-
-    console.log("AI plays:", aiMove);
-
-    // Check game status
-    if (game.isGameOver()) {
-        alert("Game Over! Result: " + game.getResult());
+  stockfish.onmessage = (event) => {
+    const message = event.data;
+    if (message.startsWith('bestmove')) {
+      const move = message.split(' ')[1];
+      game.move(move);
+      board.position(game.fen(), true);
+      updateStatus();
+      playCheckSound(); // Or appropriate sound
+      stockfish.terminate(); // Clean up
     }
+  };
 }
-
-
 
 // --- Sound Toggle ---
 let soundEnabled = true;
@@ -445,3 +448,130 @@ socket.on('chat_message_from_server', ({ from, text }) => {
   chatLog.scrollTop = chatLog.scrollHeight;
 });
 // End of script.js
+
+// Simple piece values for evaluation (expand as needed)
+const PIECE_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+// Basic evaluator (port of your Evaluator)
+class Evaluator {
+  evaluate(board) {
+    let score = 0;
+    const fen = board.fen();
+    // Simple material count (you can add positional bonuses)
+    const pieces = fen.split(' ')[0].replace(/\d/g, '').replace(/\//g, '');
+    for (const piece of pieces) {
+      const value = PIECE_VALUES[piece.toLowerCase()] || 0;
+      score += piece === piece.toUpperCase() ? value : -value; // White positive, Black negative
+    }
+    return score;
+  }
+
+  getValue(piece) {
+    return PIECE_VALUES[piece.toLowerCase()] || 0;
+  }
+}
+
+// ChessAI class (ported minimax) - Fixed for strict mode
+class ChessAI {
+  constructor() {
+    this.evaluator = new Evaluator();
+    this.transpositionTable = new Map();
+  }
+
+  playVsAI(game, maxDepth = 5, timeLimitMs = 2000) {
+    const start = Date.now();
+    let bestMove = null;
+    let bestScore = -Infinity;
+
+    const moves = game.moves({ verbose: true });
+    for (const move of moves) {
+      game.move(move);
+      const score = this.minimax(game, maxDepth - 1, -Infinity, Infinity, false);
+      game.undo();
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+      if (Date.now() - start > timeLimitMs) break;
+    }
+    return bestMove;
+  }
+
+  minimax(game, depth, alpha, beta, maximizingPlayer) {
+    const hash = game.fen(); // Simple hash (use Zobrist for better performance)
+    if (this.transpositionTable.has(hash)) return this.transpositionTable.get(hash);
+
+    if (depth === 0 || game.game_over()) {
+      const evaluation = this.quiescence(game, alpha, beta);
+      this.transpositionTable.set(hash, evaluation);
+      return evaluation;
+    }
+
+    const moves = this.orderMoves(game);
+    if (maximizingPlayer) {
+      let maxEval = -Infinity;
+      for (const move of moves) {
+        game.move(move);
+        const evaluation = this.minimax(game, depth - 1, alpha, beta, false);
+        game.undo();
+        maxEval = Math.max(maxEval, evaluation);
+        alpha = Math.max(alpha, evaluation);
+        if (beta <= alpha) break;
+      }
+      this.transpositionTable.set(hash, maxEval);
+      return maxEval;
+    } else {
+      let minEval = Infinity;
+      for (const move of moves) {
+        game.move(move);
+        const evaluation = this.minimax(game, depth - 1, alpha, beta, true);
+        game.undo();
+        minEval = Math.min(minEval, evaluation);
+        beta = Math.min(beta, evaluation);
+        if (beta <= alpha) break;
+      }
+      this.transpositionTable.set(hash, minEval);
+      return minEval;
+    }
+  }
+
+  quiescence(game, alpha, beta) {
+    const standPat = this.evaluator.evaluate(game);
+    if (standPat >= beta) return beta;
+    if (alpha < standPat) alpha = standPat;
+
+    const captures = game.moves({ verbose: true }).filter(m => m.flags.includes('c'));
+    for (const move of captures) {
+      game.move(move);
+      const score = -this.quiescence(game, -beta, -alpha);
+      game.undo();
+      if (score >= beta) return beta;
+      if (score > alpha) alpha = score;
+    }
+    return alpha;
+  }
+
+  orderMoves(game) {
+    return game.moves({ verbose: true }).sort((a, b) => this.scoreMove(b) - this.scoreMove(a));
+  }
+
+  scoreMove(move) {
+    if (move.flags.includes('c')) return 1000 + this.evaluator.getValue(move.captured);
+    if (game.in_check()) return 500; // Approximate check detection
+    return 0;
+  }
+}
+
+// Update playAiBtn to use the JS AI
+const ai = new ChessAI();
+async function playAiBtn() {
+  if (game.turn() !== 'b') return; // AI plays as Black
+
+  const aiMove = ai.playVsAI(game, 5, 2000);
+  if (aiMove) {
+    game.move(aiMove);
+    board.position(game.fen(), true);
+    updateStatus();
+    playMoveSound();
+  }
+}
