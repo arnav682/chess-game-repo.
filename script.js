@@ -247,43 +247,50 @@ function Handlebuttonclick(event) {
   document.getElementById('main-element').style.display = 'none';
 }
 document.addEventListener('DOMContentLoaded', function () {
+  // Existing timer button handlers
   const buttons = document.getElementsByClassName('timer-button');
   for (let i = 0; i < buttons.length; i++) {
     const b = buttons[i];
     if (b.getAttribute('data-time')) b.addEventListener('click', Handlebuttonclick);
   }
-});
 
-// Names
-setNameBtn.addEventListener('click', () => {
-  const n = nameInput.value.trim();
-  if (!n) return showToast('Enter a name');
-  socket.emit('set_name', n);
-  showToast('Name set: ' + n);
-});
+  // Add these inside DOMContentLoaded to ensure DOM is ready
+  setNameBtn.addEventListener('click', () => {
+    const n = nameInput.value.trim();
+    if (!n) return showToast('Enter a name');
+    socket.emit('set_name', n);
+    showToast('Name set: ' + n);
+  });
 
-// Offers
-drawBtn.addEventListener('click', () => socket.emit('draw_offer'));
-takebackBtn.addEventListener('click', () => socket.emit('takeback_request'));
-rematchBtn.addEventListener('click', () => socket.emit('rematch_request'));
-stallBtn.addEventListener('click', () => {
-  if (!matchId) return;
-  socket.emit('claim_win_on_stall', matchId);
-});
+  drawBtn.addEventListener('click', () => socket.emit('draw_offer'));
+  takebackBtn.addEventListener('click', () => socket.emit('takeback_request'));
+  rematchBtn.addEventListener('click', () => socket.emit('rematch_request'));
+  stallBtn.addEventListener('click', () => {
+    if (!matchId) return;
+    socket.emit('claim_win_on_stall', matchId);
+  });
 
-// Spectate
-spectateBtn.addEventListener('click', () => {
-  const id = spectateIdInput.value.trim();
-  if (!id) return showToast('Enter match ID to spectate');
-  socket.emit('spectate', id);
-});
+  spectateBtn.addEventListener('click', () => {
+    const id = spectateIdInput.value.trim();
+    if (!id) return showToast('Enter match ID to spectate');
+    socket.emit('spectate', id);
+  });
 
-// Chat
-chatSend.addEventListener('click', () => {
-  const text = chatInput.value.trim();
-  if (!text) return;
-  socket.emit('chat_message', text);
-  chatInput.value = '';
+  chatSend.addEventListener('click', () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    socket.emit('chat_message', text);
+    chatInput.value = '';
+  });
+
+  // Move this here from global scope
+  document.getElementById("playAiBtn").addEventListener("click", playAiBtn);
+
+  // Sound toggle
+  document.getElementById("sound_toggle").addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    updateSoundButton();
+  });
 });
 
 // AI opponent (client-side only)
