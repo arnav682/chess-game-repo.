@@ -25,7 +25,8 @@ const chatSend = document.getElementById('chat_send');
 const chatLog = document.getElementById('chat_log');
 const promoModal = document.getElementById('promotion_modal');
 const promoBtns = document.querySelectorAll('.promo-btn');
-document.getElementById("aiBtn").addEventListener("click", playAiBtn);
+document.getElementById("playAiBtn").addEventListener("click", playAiBtn);
+
 
 //Sounds 
 
@@ -285,6 +286,7 @@ chatSend.addEventListener('click', () => {
   chatInput.value = '';
 });
 
+// AI opponent (client-side only)
 async function playAiBtn() {
     // Get current board state in FEN
     const fen = game.toFEN();
@@ -309,7 +311,6 @@ async function playAiBtn() {
         alert("Game Over! Result: " + game.getResult());
     }
 }
-
 
 
 
