@@ -25,7 +25,7 @@ const chatSend = document.getElementById('chat_send');
 const chatLog = document.getElementById('chat_log');
 const promoModal = document.getElementById('promotion_modal');
 const promoBtns = document.querySelectorAll('.promo-btn');
-const playAiBtn = document.getElementById('play_ai');
+document.getElementById("aiBtn").addEventListener("click", playAiBtn);
 
 //Sounds 
 
@@ -285,56 +285,31 @@ chatSend.addEventListener('click', () => {
   chatInput.value = '';
 });
 
-// AI opponent (client-side only)
-playAiBtn.addEventListener('click', () => {
-  isSpectator = false;
-  c_player = 'w';
-  currenttimer = 10;
-  initTimers(currenttimer);
-  pauseTimer('w'); pauseTimer('b'); resumeTimer('w');
-  document.getElementById('youareplayingas').textContent = 'You are playing vs AI (White)';
-  document.getElementById('main-element').style.display = 'flex';
-  showToast('AI match started');
+async function playAiBtn() {
+    // Get current board state in FEN
+    const fen = game.toFEN();
 
-  // --- Stockfish Integration ---
-  let stockfish = new Worker("engine/stockfish-18.js"); // path to your Stockfish build
+    // Send FEN to backend
+    const response = await fetch("/ai/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fen)
+    });
 
-  stockfish.onmessage = function(event) {
-    const message = event.data;
-    console.log("Stockfish:", message);
+    const aiMove = await response.text();
 
-    if (message.startsWith("bestmove")) {
-      const move = message.split(" ")[1];
-      // Apply move to board + game state
-      game.move(move);
-      board.position(game.fen(), true);
-      pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
-      updateStatus();
+    // Apply AI move to board
+    game.makeMove(aiMove);
+    boardUI.update(game);
+
+    console.log("AI plays:", aiMove);
+
+    // Check game status
+    if (game.isGameOver()) {
+        alert("Game Over! Result: " + game.getResult());
     }
-  };
+}
 
-  stockfish.postMessage("uci");
-  stockfish.postMessage("isready");
-
-  // Replace random AI with Stockfish move
-  function aiMove() {
-    if (game.turn() !== 'b') return;
-    // Send current position to Stockfish
-    stockfish.postMessage("position fen " + game.fen());
-    stockfish.postMessage("go depth 12"); // adjust depth for difficulty
-  }
-
-  // Hook after your move to play AI
-  const originalEmit = socket.emit;
-  socket.emit = function () {
-    const event = arguments[0];
-    if (event === 'sync_state') {
-      setTimeout(aiMove, 500);
-      return;
-    }
-    return originalEmit.apply(socket, arguments);
-  };
-});
 
 
 
