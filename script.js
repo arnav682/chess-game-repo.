@@ -25,8 +25,6 @@ const chatSend = document.getElementById('chat_send');
 const chatLog = document.getElementById('chat_log');
 const promoModal = document.getElementById('promotion_modal');
 const promoBtns = document.querySelectorAll('.promo-btn');
-document.getElementById("playAiBtn").addEventListener("click", playAiBtn);
-
 
 //Sounds 
 
@@ -254,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (b.getAttribute('data-time')) b.addEventListener('click', Handlebuttonclick);
   }
 
-  // Add these inside DOMContentLoaded to ensure DOM is ready
+  // Add these inside DOMContentLoaded
   setNameBtn.addEventListener('click', () => {
     const n = nameInput.value.trim();
     if (!n) return showToast('Enter a name');
@@ -283,10 +281,10 @@ document.addEventListener('DOMContentLoaded', function () {
     chatInput.value = '';
   });
 
-  // Move this here from global scope
+  // Move playAiBtn listener here (from global scope)
   document.getElementById("playAiBtn").addEventListener("click", playAiBtn);
 
-  // Sound toggle
+  // Sound toggle (remove duplicate later in file)
   document.getElementById("sound_toggle").addEventListener("click", () => {
     soundEnabled = !soundEnabled;
     updateSoundButton();
@@ -295,33 +293,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // AI opponent (client-side only)
 async function playAiBtn() {
-  if (game.turn() !== 'b') return; // Only play if it's Black's turn (AI)
+  if (game.turn() !== 'b') return; // AI plays as Black
 
-  // Load Stockfish if not already loaded
-  if (!window.Stockfish) {
-    const script = document.createElement('script');
-    script.src = 'engine/stockfish-18.js'; // Path to your Stockfish file
-    document.head.appendChild(script);
-    await new Promise(resolve => script.onload = resolve);
+  const aiMove = ai.playVsAI(game, 5, 2000);
+  if (aiMove) {
+    game.move(aiMove);
+    board.position(game.fen(), true);
+    updateStatus();
+    playMoveSound();
   }
-
-  const stockfish = new Worker('engine/stockfish-18.js'); // Stockfish runs in a Web Worker for performance
-  stockfish.postMessage('uci');
-  stockfish.postMessage('setoption name Skill Level value 10'); // Adjust skill (0-20)
-  stockfish.postMessage(`position fen ${game.fen()}`);
-  stockfish.postMessage('go movetime 2000'); // 2-second think time
-
-  stockfish.onmessage = (event) => {
-    const message = event.data;
-    if (message.startsWith('bestmove')) {
-      const move = message.split(' ')[1];
-      game.move(move);
-      board.position(game.fen(), true);
-      updateStatus();
-      playCheckSound(); // Or appropriate sound
-      stockfish.terminate(); // Clean up
-    }
-  };
 }
 
 // --- Sound Toggle ---
@@ -454,7 +434,6 @@ socket.on('chat_message_from_server', ({ from, text }) => {
   chatLog.appendChild(p);
   chatLog.scrollTop = chatLog.scrollHeight;
 });
-// End of script.js
 
 // Simple piece values for evaluation (expand as needed)
 const PIECE_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
