@@ -289,31 +289,44 @@ chatSend.addEventListener('click', () => {
 playAiBtn.addEventListener('click', () => {
   isSpectator = false;
   c_player = 'w';
-  currenttimer = 5;
+  currenttimer = 10;
   initTimers(currenttimer);
   pauseTimer('w'); pauseTimer('b'); resumeTimer('w');
   document.getElementById('youareplayingas').textContent = 'You are playing vs AI (White)';
   document.getElementById('main-element').style.display = 'flex';
   showToast('AI match started');
 
-  // Simple AI: random legal move for black after your move
+  // --- Stockfish Integration ---
+  let stockfish = new Worker("engine/stockfish-18.js"); // path to your Stockfish build
+
+  stockfish.onmessage = function(event) {
+    const message = event.data;
+    console.log("Stockfish:", message);
+
+    if (message.startsWith("bestmove")) {
+      const move = message.split(" ")[1];
+      // Apply move to board + game state
+      game.move(move);
+      board.position(game.fen(), true);
+      pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
+      updateStatus();
+    }
+  };
+
+  stockfish.postMessage("uci");
+  stockfish.postMessage("isready");
+
+  // Replace random AI with Stockfish move
   function aiMove() {
     if (game.turn() !== 'b') return;
-    const moves = game.moves({ verbose: true });
-    if (!moves.length) return;
-    const choice = moves[Math.floor(Math.random() * moves.length)];
-    game.move({ from: choice.from, to: choice.to, promotion: 'q' });
-    board.position(game.fen(), true);
-    pauseTimer('w'); pauseTimer('b'); resumeTimer(game.turn());
-    updateStatus();
+    // Send current position to Stockfish
+    stockfish.postMessage("position fen " + game.fen());
+    stockfish.postMessage("go depth 12"); // adjust depth for difficulty
   }
-
-
 
   // Hook after your move to play AI
   const originalEmit = socket.emit;
   socket.emit = function () {
-    // intercept sync_state only in AI mode (no sockets used)
     const event = arguments[0];
     if (event === 'sync_state') {
       setTimeout(aiMove, 500);
@@ -322,6 +335,7 @@ playAiBtn.addEventListener('click', () => {
     return originalEmit.apply(socket, arguments);
   };
 });
+
 
 
 // --- Sound Toggle ---
